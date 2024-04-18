@@ -61,26 +61,8 @@ module memory(reset, write_enable ,read_enable, data_input, address_input, data_
     reg [7:0] memarr [255:0];
     always@(reset, write_enable, read_enable)
     begin
-        if(reset)
-        begin
-            memarr[0]=6'b000000;
-            memarr[1]=6'b000000;
-            memarr[2]=6'b000000;
-            memarr[3]=6'b000000;
-            memarr[4]=6'b000000;
-            memarr[5]=6'b000000;
-            memarr[6]=6'b000000;
-            memarr[7]=6'b000000;
-            memarr[8]=6'b000000;
-            memarr[9]=6'b000000;
-            memarr[10]=6'b000000;
-            memarr[11]=6'b000000;
-            memarr[12]=6'b000000;
-            memarr[13]=6'b000000;
-            memarr[14]=6'b000000;
-            memarr[15]=6'b000000;
-        end        
-        else if(write_enable)
+                
+        if(write_enable)
         begin
             memarr[address_input]=data_input;
             //$display("input fed: %d",memarr[address_input]);
@@ -93,4 +75,89 @@ module memory(reset, write_enable ,read_enable, data_input, address_input, data_
         //$display("read_enable %d memory read %d",read_enable,data_out);
     end
     
+endmodule
+
+module instruction_memory(read_enable, write_enable, input_instruc, address, out);
+input read_enable, write_enable;
+input [7:0]address;
+input [15:0] input_instruc;
+output reg[15:0] out;
+reg [15:0] instruc_memory [255:0]; 
+
+always@(read_enable, write_enable)
+begin
+    if(read_enable)
+    begin
+        out=instruc_memory[address];
+    end
+    else if(write_enable)
+    begin
+        instruc_memory[address]=input_instruc;
+    end
+end
+endmodule
+
+
+
+
+
+module controller();
+reg [4:0] cstate=0,nstate=0;
+
+input [15:0] instruc_reg_out;
+
+always@(posedge clk)
+begin
+    cstate<=nstate;
+    
+end
+
+always@(cstate)
+begin
+    case(cstate)
+    0: //pc_Reset
+    begin
+        PC_reset=1;
+        nstate<=1;
+    end
+    1: //fetch from instruc_mem and writing into instruction reg
+    begin
+        PC_reset=0;
+        instruc_mem_read=1;
+        instruc_reg_write=1;
+        nstate<=2;
+    end
+    2: //pc increment (inbuilt pc increment DONT SENT TO ALU)
+    begin
+        instruc_mem_read=0;
+        instruc_reg_write=0;
+        PC_incr=1;
+        nstate<=3;
+    end
+    3: //reading instruction register
+    begin
+        PC_incr=0;
+        instruc_reg_read=1;
+        nstate<=4;
+    end
+    4: 
+    begin
+        instruc_reg_read=0;
+        case(instruc_reg_out[15:12])
+            0: nstate<=5;
+            1: nstate<=6;
+            2: nstate<=7;
+            3: nstate<=8;
+            4: nstate<=9;
+            5: nstate<=10;
+            // default:
+        endcase
+    end
+    5:
+    begin
+        
+    end
+endcase
+end
+
 endmodule
