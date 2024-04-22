@@ -16,14 +16,17 @@ module ALU(ALUControl, A, B, ALUResult, Zero);
     wire add_carry,sub_carry;
     eight_bit_Adder out1(A,B,1'b 0,add_output,add_carry);
     eight_bit_Adder out2(A,not_b,1'b 1,sub_output,sub_carry);
-    
-    always @(ALUControl,A,B)
+  always@(*)
     begin
-		case (ALUControl)
+      $display("A: %d B: %d not_b: %b Aluresult: %d", A, B,not_b, ALUResult);
+    end 
+  always @(ALUControl,A,B,sub_output,add_output)
+    begin
+      case (ALUControl)
 		0: // ADD
-        begin ALUResult<=add_output; end
+        begin ALUResult=add_output; end
         1: //SUBTRACT
-        begin ALUResult<= sub_output; end
+        begin ALUResult= sub_output; end
         endcase
 	end
 	always @(ALUResult) 
@@ -36,6 +39,20 @@ module ALU(ALUControl, A, B, ALUResult, Zero);
 	end
 endmodule
 
+
+module mux2x1(input_data1, input_data2, sel, out);
+input [7:0]input_data1;
+input [7:0]input_data2;
+input sel;
+output reg [7:0]out;
+always@(*)
+begin
+    case(sel)
+        1'b0: out=input_data1;
+        1'b1: out=input_data2;
+    endcase
+end
+endmodule
 
 module half_add(a,b,s,c); 
   input a,b;
@@ -74,12 +91,14 @@ endmodule
 
 module instruction_register(input write_enable,input read_enable,input [15:0] data_in,output reg [15:0] data_out);
 reg [15:0]temp;
+always@(*)
+begin
+    $display("IR: %b, data_out=%b, data_in=%b",temp,data_out,data_in);
+end
 always@(write_enable or read_enable)
 begin
-    if(write_enable)
-    temp=data_in;
-    else if (read_enable)
-    data_out=temp;
+    if(write_enable) temp=data_in;
+    else if(read_enable) data_out=temp;
 end
 endmodule
 
@@ -127,6 +146,17 @@ input [7:0]input_data;
 output reg [7:0]out;
 
 reg [7:0] registers[15:0];
+  
+  always@(*)
+    begin
+      $display("register 0 : %b",registers[0]);
+      $display("register 1 : %b",registers[1]);
+      $display("register 2 : %b",registers[2]);
+      $display("register 3 : %b",registers[3]);
+      $display("register 4 : %b",registers[4]);
+      $display("register 5 : %b",registers[5]);
+
+    end
 
 always@(write_enable, read_enable)
 begin
@@ -143,37 +173,14 @@ end
 endmodule
 
 
-module mux2x1(input_data1, input_data2, sel, out);
-input [7:0]input_data1;
-input [7:0]input_data2;
-input sel;
-output reg [7:0]out;
-always@(*)
-begin
-    case(sel)
-        1'b0: out=input_data1;
-        1'b1: out=input_data2;
-    endcase
-end
-endmodule
-
-
-module mux4v1(input_data1, input_data2, input_data3, input_data4, sel1, sel0, out);
-input [7:0]input_data1, input_data2, input_data3, input_data4;
-input sel1, sel0;
-output [7:0]out;
-
-wire [7:0]w1,w2;
-mux2x1 m1(input_data1, input_data2, sel0, w1);
-mux2x1 m2(input_data3, input_data4, sel0, w2);
-mux2x1 m3(w1, w2, sel1, out);
-
-endmodule
-
 module mux3v1_4bit(input_data1, input_data2, input_data3,sel,out);
     input [3:0]input_data1, input_data2, input_data3;
     input [1:0] sel;
     output reg[3:0] out;
+  always@(*)
+    begin
+      $display("inputs to mux %b %b %b",input_data1, input_data2, input_data3);
+    end
     always@(sel)
     begin 
         case(sel)
@@ -209,6 +216,19 @@ module memory(write_enable ,read_enable, data_input, address_input, data_out);
     output reg [7:0]data_out;
 
     reg [7:0] memarr [255:0];
+  	
+  always@(*)
+    begin
+                      
+      $display("memory 0: ",memarr[0]);
+      $display("memory 1: ",memarr[1]);
+      $display("memory 2: ",memarr[2]);
+      $display("memory 3: ",memarr[3]);
+      $display("memory 4: ",memarr[4]);
+      $display("memory 5: ",memarr[5]);
+
+    end
+  	
     always@(write_enable, read_enable)
     begin
                 
@@ -332,39 +352,44 @@ begin
     end
     1:// read pc
     begin
+        register_write_enable=0;
         pc_reset=0; 
         pc_read_enable=1;
-        
         nstate=2;
     end
     2: //fetch from instruc_mem and writing into instruction reg
     begin
         pc_read_enable=0;
         instruc_mem_address_select=1;
-        instruc_mem_read=1;
+        //instruc_mem_read=1;
         nstate=32;
     end
     32:
     begin
-        instruc_mem_read=0;
-        instruc_reg_write=1;
+        instruc_mem_read=1;
+        instruc_reg_write=0;
         nstate=3;
     end
     3: //pc increment (inbuilt pc increment DONT SENT TO ALU)
     begin
-        instruc_reg_write=0;
-        pc_select=0;
-        pc_write_enable=1;
+        instruc_mem_read=0;
+        instruc_reg_write=1;
+        // pc_select=0;
+        // pc_write_enable=1;
         nstate=4;
     end
     4: //reading instruction register
     begin
-        pc_write_enable=0;
+        instruc_reg_write=0;
+        pc_select=0;
+        pc_write_enable=1;
+        //pc_write_enable=0;
         instruc_reg_read=1;
         nstate=5;
     end
     5: //decode
     begin
+        pc_write_enable=0;
         instruc_reg_read=0;
         case(instruc_reg_out[15:12])
             0: nstate<=11;
@@ -373,7 +398,7 @@ begin
             3: nstate<=8;
             4: nstate<=9;
             5: nstate<=10;
-            // default:
+             default: nstate<=1;
         endcase
     end
 
@@ -385,15 +410,18 @@ begin
     end
     12: //load read data into register
     begin 
-        mux_register_write_select=2'b01;
         mem_read_enable=0;
+        mux_register_write_select=2'b01;
         rf_address_mux=0;
-        register_write_enable=1;
+        
+        
+        //register_write_enable=1;
         nstate<=13;
     end
     13: //end state of load
     begin
-        register_write_enable=0;
+        register_write_enable=1;
+        rf_address_mux=3;
         nstate<=1;
     end
 
@@ -403,17 +431,23 @@ begin
     begin
         rf_address_mux=0;
         //mux_register_read_select=0;
-        register_read_enable=1;
+        nstate=35;
+    end
+    35:
+    begin 
+register_read_enable=1;
         nstate<=14;
     end
     14: //memory write
     begin
         register_read_enable=0;
         mem_write_enable=1;
+        
         nstate<=15;
     end
     15: //end state of store
     begin
+        rf_address_mux=3;
         mem_write_enable=0;
         nstate<=1;
     end
@@ -424,15 +458,19 @@ begin
         begin
             rf_address_mux=1;
        // mux_register_read_select=0;
+        nstate=36;
+        end
+    36:
+    begin 
         register_read_enable=1;
         nstate<=16;
-        end
-
+    end
     16: 
         begin
 
         register_read_enable=0;
         temp_a_write_enable=1;
+        rf_address_mux=2;
         nstate<=17;
         end
 
@@ -440,7 +478,7 @@ begin
     17: ///read register B
         begin
             temp_a_write_enable=0;
-            rf_address_mux=2;
+            //rf_address_mux=2;
            // mux_register_read_select=1;
             register_read_enable=1;
             nstate<=18;
@@ -450,6 +488,7 @@ begin
         begin
             register_read_enable=0;
             temp_b_write_enable=1;
+            rf_address_mux=3;
             nstate<=19;
         end
 
@@ -458,19 +497,29 @@ begin
         begin
             temp_b_write_enable=0;
             alu_select=0;
-            nstate<=20;
+            
+            nstate<=37;
         end
+      37: 
+        begin 
+          rf_address_mux=0;
+            mux_register_write_select=2'b00;
+          nstate=20;
+        end 
     20: //writing the sum into register file
         begin
-            rf_address_mux=0;
-            mux_register_write_select=2'b00;
+            
             register_write_enable=1;
             nstate<=21;
         end
 
     21: //off kardo write enable
         begin
+           
             register_write_enable=0;
+           mux_register_write_select=2'b11;
+          rf_address_mux=3;
+           alu_select=1;
             nstate<=1;
         end
 
@@ -479,76 +528,162 @@ begin
         begin
             rf_address_mux=0;
             mux_register_write_select=2'b10;
+          nstate<=34;
+        end
+      34:
+        begin
+          
+
             register_write_enable=1;
+                  
             nstate<=21;
         end
 
 
-    //subtract
+    // //subtract
 
+    // 9: //read register A
+    //     begin
+    //         rf_address_mux=0;
+    //    // mux_register_read_select=0;
+    //     register_read_enable=1;
+    //     nstate<=22;
+    //     end
+
+    // 22: 
+    //     begin
+    //     register_read_enable=0;
+    //     temp_a_write_enable=1;
+    //     rf_address_mux=3;
+    //     nstate<=23;
+    //     end
+
+
+    // 23: ///read register B
+    //     begin
+    //         temp_a_write_enable=0;
+    //         rf_address_mux=2;
+    //         //mux_register_read_select=1;
+    //         register_read_enable=1;
+    //         nstate<=24;
+    //     end
+
+    // 24: //store in temp register
+    //     begin
+    //         register_read_enable=0;
+    //         temp_b_write_enable=1;
+    //         rf_address_mux=3;
+    //         nstate<=25;
+    //     end
+
+    // 25: //subtraction
+    //     begin
+    //          temp_b_write_enable=0;
+    //         alu_select=1;
+    //         nstate<=26;
+    //     end
+    // 26: //writing the sum into register file
+    //     begin
+    //         rf_address_mux=0;
+    //         mux_register_write_select=2'b00;
+    //         register_write_enable=1;
+    //         nstate<=27;
+    //     end
+
+    // 27: //off kardo write enable
+    //     begin
+    //         register_write_enable=0;
+    //         rf_address_mux=3;
+    //         nstate<=1;
+    //     end
+    //addition
+
+    //subtraction
     9: //read register A
         begin
             rf_address_mux=1;
        // mux_register_read_select=0;
-        register_read_enable=1;
-        nstate<=22;
+        nstate=22;
         end
-
-    22: 
+    22:
+    begin 
+        register_read_enable=1;
+        nstate<=23;
+    end
+    23: 
         begin
+
         register_read_enable=0;
         temp_a_write_enable=1;
-        nstate<=23;
+        rf_address_mux=2;
+        nstate<=24;
         end
 
 
-    23: ///read register B
+    24: ///read register B
         begin
             temp_a_write_enable=0;
-            rf_address_mux=2;
-            //mux_register_read_select=1;
+            //rf_address_mux=2;
+           // mux_register_read_select=1;
             register_read_enable=1;
-            nstate<=24;
-        end
-
-    24: //store in temp register
-        begin
-            register_read_enable=0;
-            temp_b_write_enable=1;
             nstate<=25;
         end
 
-    25: //subtraction
+    25: 
         begin
-             temp_b_write_enable=0;
-            alu_select=1;
+            register_read_enable=0;
+            temp_b_write_enable=1;
+            rf_address_mux=3;
             nstate<=26;
         end
-    26: //writing the sum into register file
+
+
+    26: //addition
         begin
-            rf_address_mux=0;
-            mux_register_write_select=2'b00;
-            register_write_enable=1;
+            temp_b_write_enable=0;
+            alu_select=1;
+            
             nstate<=27;
         end
-
-    27: //off kardo write enable
+      27: 
+        begin 
+          rf_address_mux=0;
+            mux_register_write_select=2'b00;
+          nstate=38;
+        end 
+    38: //writing the sum into register file
         begin
-            register_write_enable=0;
-            nstate<=1;
+            
+            register_write_enable=1;
+            nstate<=39;
         end
 
+    39: //off kardo write enable
+        begin
+           
+            register_write_enable=0;
+           mux_register_write_select=2'b11;
+          rf_address_mux=3;
+           alu_select=0;
+            nstate<=1;
+        end
     //jump
     10://read register
     begin 
         rf_address_mux=0;
-        register_read_enable=1;
+       
 
-        nstate=28;
+        nstate=40;
     end
+    40:
+    begin
+ register_read_enable=1;
+ nstate=28;
+    end    
     28: //check for zero
         begin
             register_read_enable=0;
+           
             if(check_zero_out)
             begin
                 pc_select=1;
@@ -558,9 +693,12 @@ begin
             else
             nstate<=1;
         end
+        
     29: //
-        begin   
+        begin
+             rf_address_mux=3;   
             pc_write_enable=0;
+            pc_select=0;
             nstate<=1;
         end
     
@@ -570,13 +708,15 @@ end
 endmodule
 
 module temp_reg(input write_enable,input [7:0]data_in,output reg [7:0] data_out);
+always@(*)
+$display(" value in register %d",data_out);
 always@(write_enable)
 data_out<=data_in;
 endmodule
 
 
 
-module final_design(input clk,input[1:0] valid,input [15:0]instruction,input [7:0] instruction_address,output [7:0]ALUResult, output check_zero_out);
+module final_design(input clk,input[1:0] valid,input [15:0]instruction,input [7:0] instruction_address);
 wire [15:0] instruction_memory_output,instruction_register_output;
 wire instruc_mem_read, instruc_mem_write,instruc_mem_address_select;
 wire instruc_reg_read,instruc_reg_write;
@@ -586,14 +726,14 @@ wire pc_reset, pc_select,pc_read_enable,pc_write_enable;
 wire mem_read_enable,mem_write_enable;
 wire [7:0]memory_output;
 wire [7:0] reg_file_output;
-//wire check_zero_out;
+wire check_zero_out;
 wire [3:0] address_input_to_rf;
 wire [1:0]rf_address_mux;
 wire [7:0]data_input_to_rf;
 wire [1:0]mux_register_write_select;
 wire register_write_enable,register_read_enable;
 wire alu_select;
-//wire [7:0]ALUResult;
+wire [7:0]ALUResult;
 wire zero;
 wire [7:0] a_val,b_val;
 wire temp_a_write_enable,temp_b_write_enable;
@@ -605,6 +745,7 @@ instruction_register IR(.write_enable(instruc_reg_write), .read_enable(instruc_r
 
 always@(posedge clk)
 begin
+    $display("memory_output: %b",memory_output);
     $display("pc:%b, instru_address_final:%b, instruction_register_output:%b, instruction_memory_output:%b",pc_output, instru_address_final,instruction_register_output,instruction_memory_output);
 end
 
