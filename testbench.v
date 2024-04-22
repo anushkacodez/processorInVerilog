@@ -130,15 +130,9 @@ module testbench;
         #3;
         valid=2'b11;
 
-        // Additional test vectors can be added here
-        #5000;
+        #2000;
         $finish; // Terminate simulation
     end
     
-    // Monitor changes and display output
-    initial begin
-//       $monitor("Clock=%b , Valid=%b, Time = %d, Instruction = %b, Instruction Address = %b, ALUResult=%b, Zero=%b",
-//                  clk,valid,$time, instruction, instruction_address,ALUResult,Zero);
-    end
 
 endmodule
